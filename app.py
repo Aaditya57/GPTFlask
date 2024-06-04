@@ -6,7 +6,7 @@ from dotenv import load_dotenv, dotenv_values
 
 load_dotenv()
 
-connection = OpenAI()
+client = OpenAI()
 
 app = Flask(__name__)
 
@@ -28,7 +28,7 @@ def index():
         return render_template("index.html")
     
 def askAI(prompt):
-    completion = connection.chat.completions.create(
+    completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{ "role":"user", "content": "limit yourself to one sentence: " + prompt}],
         stream=True,
