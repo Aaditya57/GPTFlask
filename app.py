@@ -1,38 +1,39 @@
-
-from flask import Flask, render_template, redirect, request
-
+from flask import Flask, render_template, request 
 from openai import OpenAI
-from dotenv import load_dotenv, dotenv_values
-
-load_dotenv()
 
 client = OpenAI()
 
-app = Flask(__name__)
 
-app.config["TEMPLATES_AUTO_RELOAD"] = True
-@app.route('/', methods = ["POST", "GET"])
+def create_app():
+    app = Flask(__name__)
 
-def index():
-    if request.method == "POST":
-        
-        prompt = request.form.get("prompt")
-        if not prompt:
-            return redirect("/")
-        
-
-        askAI(prompt)
-        #print(output)
-        return render_template("index.html")
-    else:
+    @app.route("/")
+    def index():
         return render_template("index.html")
     
-def askAI(prompt):
-    completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{ "role":"user", "content": "limit yourself to one sentence: " + prompt}],
-        stream=True,
-    )
-    for chunk in completion:
-        if chunk.choices[0].delta.content is not None:
-            print(chunk.choices[0].delta.content, end="")
+    @app.route ("upload_pdf", methods = ["POST"])
+    def main():
+        files = request.files["TenStages.pdf"]
+        return convert_pdf_to_jpg(files,files.name)if __name__ == ‘__main__’:
+        app.run(debug = True)
+
+    @app.route("/answer", methods=["POST"])
+    def answer():
+        data = request.get_json()
+        message = data["message"]
+
+
+        def generate():
+            stream = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role":"user", "content":message}],
+                stream=True,
+            )
+
+            for chunk in stream:
+                if chunk.choices[0].delta.content is not None:
+                    yield(chunk.choices[0].delta.content)
+
+        return generate(), {"Content-Type": "text/plain"}
+    
+    return app
