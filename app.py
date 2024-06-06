@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify
 from langchain_community.llms import OpenAI
-from langchain.chains.question_answering import load_qa_chain
 from langchain_openai import OpenAIEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_chroma import Chroma
@@ -12,17 +11,17 @@ from langchain_community.document_loaders import PyPDFLoader
 
 client = OpenAI()    
 
-def splitter():
-    loader = PyPDFLoader('TenStages.pdf')
-    docs = loader.load()
-    text_splitter = CharacterTextSplitter(chunk_size=200, 
-                                        chunk_overlap=0,
-                                        length_function=len, 
-                                        separator=" ")
-    texts = text_splitter.split_documents(docs)
-    return texts
+# def splitter():
+#     loader = PyPDFLoader('TenStages.pdf')
+#     docs = loader.load()
+#     text_splitter = CharacterTextSplitter(chunk_size=200, 
+#                                         chunk_overlap=0,
+#                                         length_function=len, 
+#                                         separator=" ")
+#     texts = text_splitter.split_documents(docs)
+#     return texts
 
-texts = splitter()
+texts = PyPDFLoader("TenStages.pdf").load()
 print(len(texts))
 
 vectorstore = Chroma.from_documents(documents=texts, embedding=OpenAIEmbeddings())
@@ -39,6 +38,8 @@ def create_app():
     def answer():
         data = request.get_json()
         message = data["message"]
+        relevant_docs = document_search.get_relevant_documents(message)
+        context = " ".join([doc.page_content for doc in relevant_docs])
         system_prompt = (
             ""
             "Use the following pieces of retrieved context to answer "
@@ -58,18 +59,15 @@ def create_app():
             prompt = ChatPromptTemplate.from_messages(
                 [
                     ("system", system_prompt),
-                    ("human", "{message}"),
+                    ("human", message),
                 ]
             )
 
-            question_answer_chain = create_stuff_documents_chain(model, prompt)
-            rag_chain = create_retrieval_chain(document_search, question_answer_chain)
-            relevant_docs = document_search.get_relevant_documents(message)
-            context = " ".join([doc.page_content for doc in relevant_docs])
-            response = rag_chain({"context": context, "message": message})
+            response = model.generate(prompt.format(context=context))
 
             for chunk in response:
                 yield chunk
         return generate(), {"Content-Type": "text/plain"}
-    
+        
+
     return app
