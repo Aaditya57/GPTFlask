@@ -1,41 +1,32 @@
-from flask import Flask, render_template, request 
-from langchain.llms import OpenAI
+from flask import Flask, render_template, request, jsonify
+from langchain_community.llms import OpenAI
 from langchain.chains.question_answering import load_qa_chain
 from langchain_openai import OpenAIEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores import FAISS
-import PyPDF2
+from langchain_chroma import Chroma
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
+from langchain_community.document_loaders import PyPDFLoader
 
-client = OpenAI()
 
-
-def pdf_parser():
-    pdf_file_obj = open('TenStages.pdf', 'rb')
-    pdf_reader = PyPDF2.PdfReader(pdf_file_obj)
-    num_pages = len(pdf_reader.pages)
-    detected_text = ''
-
-    for page_num in range(num_pages):
-        page_obj = pdf_reader.pages[page_num]
-        detected_text += page_obj.extract_text() + "\n"
-
-    pdf_file_obj.close()
-    return detected_text
-
+client = OpenAI()    
 
 def splitter():
+    loader = PyPDFLoader('TenStages.pdf')
+    docs = loader.load()
     text_splitter = CharacterTextSplitter(chunk_size=200, 
                                         chunk_overlap=0,
                                         length_function=len, 
-                                        separator=" ", 
-                                        is_separator_regex=False)
-    texts = text_splitter.split_text(pdf_parser())
+                                        separator=" ")
+    texts = text_splitter.split_documents(docs)
+    return texts
 
 texts = splitter()
 print(len(texts))
 
-embeddings = OpenAIEmbeddings()
-document_search = FAISS.from_texts(texts, embeddings)
+vectorstore = Chroma.from_documents(documents=texts, embedding=OpenAIEmbeddings())
+document_search = vectorstore.as_retriever()
 
 def create_app():
     app = Flask(__name__)
@@ -48,20 +39,37 @@ def create_app():
     def answer():
         data = request.get_json()
         message = data["message"]
+        system_prompt = (
+            ""
+            "Use the following pieces of retrieved context to answer "
+            "the question. If you don't know the answer, say that you "
+            "don't know. Use three sentences maximum and keep the "
+            "answer concise."
+            "\n\n"
+            "{context}"
+        )
+
 
 
         def generate():
 
-            stream = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role":"user", "content":message}],
-                stream=True,
+            model = OpenAI(model = "gpt-3.5-turbo")
+
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", system_prompt),
+                    ("human", "{message}"),
+                ]
             )
 
-            for chunk in stream:
-                if chunk.choices[0].delta.content is not None:
-                    yield(chunk.choices[0].delta.content)
+            question_answer_chain = create_stuff_documents_chain(model, prompt)
+            rag_chain = create_retrieval_chain(document_search, question_answer_chain)
+            relevant_docs = document_search.get_relevant_documents(message)
+            context = " ".join([doc.page_content for doc in relevant_docs])
+            response = rag_chain({"context": context, "message": message})
 
+            for chunk in response:
+                yield chunk
         return generate(), {"Content-Type": "text/plain"}
     
     return app
