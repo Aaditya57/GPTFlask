@@ -37,38 +37,35 @@ def initialize_chroma(texts):
     vectorstore = Chroma.from_texts(texts, embeddings, persist_directory="chroma_index")
     return vectorstore
 
+def sim_search(message, k):
+    chroma_index = initialize_chroma(splitter()) 
+    results = chroma_index.similarity_search(message, k)
+    return [result.page_content for result in results]
 
-texts = splitter()
-#print(texts)
-chroma_index = initialize_chroma(texts) 
-message = "what is a genocide"
-results = chroma_index.similarity_search(message, k=5)
 
-contexts = [result.page_content for result in results]
 
 
 
 def create_app():
     app = Flask(__name__)
+    
 
 
     @app.route("/")
     def index():
         return render_template("index.html")
+    
+
 
     @app.route("/answer", methods=["POST"])
     def answer():
-        texts = splitter()
-        print(texts)
-        chroma_index = initialize_chroma(texts)
         data = request.get_json()
         message = data["message"]
+        print("Received message:", message)
+        contexts = sim_search(message, 5)
 
-        # Search Chroma index
-        results = chroma_index.similarity_search(message, k=7)
-        print(results)
-        contexts = [result.page_content for result in results]
-        
+        print("Inside Flask contexts:", contexts)
+
         # Construct a query to OpenAI
         output = [
             {"role": "system", "content": "You are a helpful assistant."},
