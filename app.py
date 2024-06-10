@@ -10,6 +10,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 import re
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+from langchain_experimental.text_splitter import SemanticChunker
 # Load environment variables
 load_dotenv()
 
@@ -50,84 +51,10 @@ def splitter_recursive(text):
     texts = text_splitter.split_text(text)
     return texts
 
-
-def combine_sentences(sentences, buffersize = 1):
-    for i in range(len(sentences)):
-
-        combined_sentence = ""
-
-        for j in range (i-buffersize, i):
-            if j>=0:
-                combined_sentence += sentences[j]['sentence'] + " "
-        combined_sentence +=sentences[i]['sentence']
-
-        for j in range (i+1, i+1 + buffersize):
-            if j<len(sentences):
-                combine_sentence += ' ' + sentences[j]['sentences']
-
-        sentences[i]['combined_sentence'] = combined_sentence 
-
-    return sentences
-
-def calculate_cosine_distances(sentences):
-    distances = []
-    for i in range(len(sentences) - 1):
-        embedding_current = sentences[i]['combined_sentence_embedding']
-        embedding_next = sentences[i + 1]['combined_sentence_embedding']
-        
-        # Calculate cosine similarity
-        similarity = cosine_similarity([embedding_current], [embedding_next])[0][0]
-        
-        # Convert to cosine distance
-        distance = 1 - similarity
-
-        # Append cosine distance to the list
-        distances.append(distance)
-
-        sentences[i]['distance_to_next'] = distance
-
-    return distances, sentences
-
 def splitter_semantic(text):
-    single_sentences_list = re.split(r'(?<=[.>?!])\s+', text)
-    sentences = [{'sentence':x, 'index': y} for y, x in enumerate(single_sentences_list)]
-    sentences = combine_sentences(sentences)
-    embeddings = OpenAIEmbeddings.embed_documents([x['combined_sentence'] for x in sentences])
-
-    for i,sentence in enumerate(sentences):
-        sentence['combined_sentence_embedding'] = embeddings[i]
-    distances, sentences = calculate_cosine_distances
-        # Initialize the start index
-    start_index = 0
-
-    # Create a list to hold the grouped sentences
-    chunks = []
-    breakpoint_percentile_threshold = 95
-    breakpoint_distance_threshold = np.percentile(distances, breakpoint_percentile_threshold)
-    indices_above_thresh = [i for i, x in enumerate(distances) if x > breakpoint_distance_threshold] # The indices of those breakpoints on your list
-    # Iterate through the breakpoints to slice the sentences
-    for index in indices_above_thresh:
-        # The end index is the current breakpoint
-        end_index = index
-
-        # Slice the sentence_dicts from the current start index to the end index
-        group = sentences[start_index:end_index + 1]
-        combined_text = ' '.join([d['sentence'] for d in group])
-        chunks.append(combined_text)
-        
-        # Update the start index for the next group
-        start_index = index + 1
-
-    # The last group, if any sentences remain
-    if start_index < len(sentences):
-        combined_text = ' '.join([d['sentence'] for d in sentences[start_index:]])
-        chunks.append(combined_text)
-
-    
-
-
-    return combined_text
-
+    text_splitter = SemanticChunker(OpenAIEmbeddings())
+    texts = text_splitter.split_text([text])
+    return texts
 
 
 # Initialize Chroma vector store
