@@ -2,3 +2,4 @@ venv
 .env
 __pycache__
 __chroma_index__
+/chroma_index

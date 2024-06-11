@@ -38,7 +38,6 @@ def splitter_character(text):
     texts = text_splitter.split_text(text)
     return texts
 
-
 def splitter_recursive(text):
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size = 200,
@@ -61,34 +60,56 @@ def initialize_chroma(texts):
     return vectorstore
 
 # Similarity search function
-def sim_search(message, k):
+def sim_search(message, k, splittercase):
     global chroma_index
     if chroma_index is None:
         text = pdf_parser('TenStages.pdf')
-        texts = splitter_recursive(text)
+        texts = splitter(text, splittercase)
         chroma_index = initialize_chroma(texts)
     results = chroma_index.similarity_search(message, k)
     return [result.page_content for result in results]
 
-def sim_search_cosine(message, k):
+def sim_search_vector(message, k, splittercase):
     global chroma_index
     if chroma_index is None:
         text = pdf_parser('TenStages.pdf')
-        texts = splitter_recursive(text)
+        texts = splitter(text, splittercase)
         chroma_index = initialize_chroma(texts)
     results = chroma_index.similarity_search_by_vector(OpenAIEmbeddings().embed_query(message))
     print(results)
     return [result.page_content for result in results]
 
-def sim_search_max_dot(message, k):
+def sim_search_max_dot(message, k, splittercase):
     global chroma_index
     if chroma_index is None:
         text = pdf_parser('TenStages.pdf')
-        texts = splitter_recursive(text)
+        texts = splitter(text, splittercase)
         chroma_index = initialize_chroma(texts)
     results = chroma_index.max_marginal_relevance_search(message, k, 25, 0.5)
     print(results)
     return [result.page_content for result in results]
+
+def splitter(text, num):
+    match num:
+        case 1:
+            return splitter_character(text)
+        case 2:
+            return splitter_recursive(text)
+        case 3:
+            return splitter_semantic(text)
+        case default:
+            return splitter_character(text)
+
+def search(message, k, splittercase, searchcase):   
+    match searchcase:
+        case 1:
+            return sim_search(message, k, splittercase)
+        case 2:
+            return sim_search_vector(message, k, splittercase)
+        case 3:
+            return sim_search_max_dot(message, k, splittercase)
+        case default:
+            return sim_search(message, k, splittercase)
 
 # Flask app
 def create_app():
@@ -103,8 +124,10 @@ def create_app():
         data = request.get_json()
         message = str(data.get("message", ""))
         print("Received message:", message)
-        
-        contexts = sim_search_max_dot(message, 10)
+        # message, number of outputs, splittercase, vectorretrivalcase
+        # splittercase: char, recursive, semantic
+        # retrivalcase: search, by vectors, and by Dot product
+        contexts = search(message, 10, 1, 1)
         print("Similar contexts:", contexts)
 
         full_context = "\n".join(contexts)
