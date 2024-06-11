@@ -122,7 +122,7 @@ def create_app():
     @app.route("/answer", methods=["POST"])
     def answer():
         data = request.get_json()
-        message = str(data.get("message", ""))
+        message = str(data.get("input", ""))
         splitter = str(data.get("splitter", ""))
         retrieval = str(data.get("retrieval", ""))
         
@@ -133,24 +133,24 @@ def create_app():
         # splittercase: char, recursive, semantic
         # retrivalcase: similarity, by threshold, and MMR
         # options are 1, 2, 3 (more intuitive that way)
-        contexts = search(message, 10, 2, 1)
-        print("Similar contexts:", contexts)
+        # contexts = search(message, 10, 2, 1)
+        # print("Similar contexts:", contexts)
 
-        full_context = "\n".join(contexts)
+        # full_context = "\n".join(contexts)
 
 
-        prompt = PromptTemplate(template="{full_context}\n\nBased on the above, {message}", input_variables=["full_context", "message"])
+        # prompt = PromptTemplate(template="{full_context}\n\nBased on the above, {message}", input_variables=["full_context", "message"])
 
-        llm_chain = prompt | llm
+        # llm_chain = prompt | llm
 
-        input = {
-            'full_context':full_context,
-            'message':message
-        }
+        # input = {
+        #     'full_context':full_context,
+        #     'message':message
+        # }
 
-        response =  llm_chain.invoke(input=input).content
+        #response =  llm_chain.invoke(input=input).content
 
-        return response
+        return "hello"
     return app
 
 if __name__ == "__main__":

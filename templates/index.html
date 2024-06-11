@@ -55,18 +55,18 @@
     <script>
         const body = document.getElementById('body');
         const submit_btn = document.querySelector('button');
-        const input = document.getElementById('input');
-        const splitter = document.querySelector('input[name="splitter"]:checked')?.value;
-        const retrieval = document.querySelector('input[name="retrieval"]:checked')?.value;
-
 
         submit_btn.addEventListener("click", async (e) => {
             e.preventDefault();
 
+            const input = document.getElementById('input');
+            const splitter = document.querySelector('input[name="splitter"]:checked')?.value;
+            const retrieval = document.querySelector('input[name="retrieval"]:checked')?.value;
+
             const response = await fetch("/answer", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({message: input.value})
+                body: JSON.stringify({input: input,splitter: splitter,retrieval: retrieval})
             });
 
             const reader = response.body.getReader();
