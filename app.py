@@ -5,8 +5,9 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import Chroma
 import PyPDF2
 from dotenv import load_dotenv
-from langchain.chains.question_answering import load_qa_chain
-
+from langchain_core.prompts import PromptTemplate
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_experimental.text_splitter import SemanticChunker
 # Load environment variables
 load_dotenv()
 
@@ -26,16 +27,32 @@ def pdf_parser(file_path):
     return detected_text
 
 # Text splitting function
-def splitter(text):
+def splitter_character(text):
     text_splitter = CharacterTextSplitter(
-        chunk_size=200,
-        chunk_overlap=50,
+        chunk_size=100,
+        chunk_overlap=2,
         length_function=len,
         separator=" ",
         is_separator_regex=True
     )
     texts = text_splitter.split_text(text)
     return texts
+
+
+def splitter_recursive(text):
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size = 200,
+        chunk_overlap = 0,
+        length_function = len
+    )
+    texts = text_splitter.split_text(text)
+    return texts
+
+def splitter_semantic(text):
+   text_splitter = SemanticChunker(OpenAIEmbeddings())
+   texts = text_splitter.split_text(text)
+   return texts  
+
 
 # Initialize Chroma vector store
 def initialize_chroma(texts):
@@ -48,9 +65,29 @@ def sim_search(message, k):
     global chroma_index
     if chroma_index is None:
         text = pdf_parser('TenStages.pdf')
-        texts = splitter(text)
+        texts = splitter_recursive(text)
         chroma_index = initialize_chroma(texts)
     results = chroma_index.similarity_search(message, k)
+    return [result.page_content for result in results]
+
+def sim_search_cosine(message, k):
+    global chroma_index
+    if chroma_index is None:
+        text = pdf_parser('TenStages.pdf')
+        texts = splitter_recursive(text)
+        chroma_index = initialize_chroma(texts)
+    results = chroma_index.similarity_search_by_vector(OpenAIEmbeddings().embed_query(message))
+    print(results)
+    return [result.page_content for result in results]
+
+def sim_search_max_dot(message, k):
+    global chroma_index
+    if chroma_index is None:
+        text = pdf_parser('TenStages.pdf')
+        texts = splitter_recursive(text)
+        chroma_index = initialize_chroma(texts)
+    results = chroma_index.max_marginal_relevance_search(message, k, 25, 0.5)
+    print(results)
     return [result.page_content for result in results]
 
 # Flask app
@@ -64,26 +101,27 @@ def create_app():
     @app.route("/answer", methods=["POST"])
     def answer():
         data = request.get_json()
-        message = data.get("message", "")
+        message = str(data.get("message", ""))
         print("Received message:", message)
         
-        contexts = sim_search(message, 5)
+        contexts = sim_search_max_dot(message, 10)
         print("Similar contexts:", contexts)
 
         full_context = "\n".join(contexts)
 
-        full_prompt = f"{full_context}\n\nBased on the above, {message}"
 
-        llm_chain = load_qa_chain(llm, chain_type="map_reduce", input_key="context", output_key="answer")
+        prompt = PromptTemplate(template="{full_context}\n\nBased on the above, {message}", input_variables=["full_context", "message"])
 
-        response = llm_chain.run({"context": full_context, "question": message})
+        llm_chain = prompt | llm
 
-        print(response)
+        input = {
+            'full_context':full_context,
+            'message':message
+        }
 
-        # full_response = response[0]["message"]["content"]
-        
-        # return jsonify({"response": full_response})
+        response =  llm_chain.invoke(input=input).content
 
+        return response
     return app
 
 if __name__ == "__main__":
