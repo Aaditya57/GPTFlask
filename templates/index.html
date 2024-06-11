@@ -11,6 +11,16 @@
             justify-content: flex-start;
             height: 100vh;
         }
+        .button-set {
+            margin: 10px;
+        }
+
+
+        #result {
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
 
         pre {
             white-space: pre-wrap;
@@ -24,6 +34,20 @@
     <form>
         <textarea id="input" placeholder="Enter your message" cols="50"></textarea>
         <button type="submit">Send</button>
+        <div class="option-set" id = splitter-case>
+            <h3>Splitter Case</h3>
+            <label><input type="radio" name="splitter" value="1"> Char Split</label>
+            <label><input type="radio" name="splitter" value="2"> Recursive Split</label>
+            <label><input type="radio" name="splitter" value="3"> Semantic Split</label>
+        </div>
+        <div class="option-set" id = retrival-case>
+            <h3>Retrieval Case</h3>
+            <label><input type="radio" name="retrieval" value="1"> Similarity</label>
+            <label><input type="radio" name="retrieval" value="2"> Threshold</label>
+            <label><input type="radio" name="retrieval" value="3"> MMR</label>
+        </div>
+        <div id="option-result"></div>
+        
     </form>
     <pre id="body"></pre>
     
@@ -32,6 +56,9 @@
         const body = document.getElementById('body');
         const submit_btn = document.querySelector('button');
         const input = document.getElementById('input');
+        const splitter = document.querySelector('input[name="splitter"]:checked')?.value;
+        const retrieval = document.querySelector('input[name="retrieval"]:checked')?.value;
+
 
         submit_btn.addEventListener("click", async (e) => {
             e.preventDefault();
@@ -57,5 +84,9 @@
 
         })
     </script>
+
+
+
+
 </body>
 </html>

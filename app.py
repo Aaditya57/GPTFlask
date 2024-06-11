@@ -60,7 +60,7 @@ def initialize_chroma(texts):
     return vectorstore
 
 # Similarity search function
-def sim_search(message, k, splittercase):
+def sim_search_similarity(message, k, splittercase):
     global chroma_index
     if chroma_index is None:
         text = pdf_parser('TenStages.pdf')
@@ -69,17 +69,17 @@ def sim_search(message, k, splittercase):
     results = chroma_index.similarity_search(message, k)
     return [result.page_content for result in results]
 
-def sim_search_vector(message, k, splittercase):
+def sim_search_threshold(message, k, splittercase):
     global chroma_index
     if chroma_index is None:
         text = pdf_parser('TenStages.pdf')
         texts = splitter(text, splittercase)
         chroma_index = initialize_chroma(texts)
-    results = chroma_index.similarity_search_by_vector(OpenAIEmbeddings().embed_query(message))
+    results = chroma_index.search(query = message, search_type = "similarity_score_threshold", score_threshold=0.8)
     print(results)
     return [result.page_content for result in results]
 
-def sim_search_max_dot(message, k, splittercase):
+def sim_search_MMR(message, k, splittercase):
     global chroma_index
     if chroma_index is None:
         text = pdf_parser('TenStages.pdf')
@@ -103,11 +103,11 @@ def splitter(text, num):
 def search(message, k, splittercase, searchcase):   
     match searchcase:
         case 1:
-            return sim_search(message, k, splittercase)
+            return sim_search_similarity(message, k, splittercase)
         case 2:
-            return sim_search_vector(message, k, splittercase)
+            return sim_search_threshold(message, k, splittercase)
         case 3:
-            return sim_search_max_dot(message, k, splittercase)
+            return sim_search_MMR(message, k, splittercase)
         case default:
             return sim_search(message, k, splittercase)
 
@@ -123,11 +123,17 @@ def create_app():
     def answer():
         data = request.get_json()
         message = str(data.get("message", ""))
+        splitter = str(data.get("splitter", ""))
+        retrieval = str(data.get("retrieval", ""))
+        
         print("Received message:", message)
+        print("Selected splitter case:", splitter)
+        print("Selected retrieval case:", retrieval)
         # message, number of outputs, splittercase, vectorretrivalcase
         # splittercase: char, recursive, semantic
-        # retrivalcase: search, by vectors, and by Dot product
-        contexts = search(message, 10, 1, 1)
+        # retrivalcase: similarity, by threshold, and MMR
+        # options are 1, 2, 3 (more intuitive that way)
+        contexts = search(message, 10, 2, 1)
         print("Similar contexts:", contexts)
 
         full_context = "\n".join(contexts)

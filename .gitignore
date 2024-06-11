@@ -3,3 +3,4 @@ venv
 __pycache__
 __chroma_index__
 /chroma_index
+chroma_index
