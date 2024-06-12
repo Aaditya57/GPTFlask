@@ -11,7 +11,14 @@
             justify-content: flex-start;
             height: 100vh;
         }
-
+        .button-set {
+            margin: 10px;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
         pre {
             white-space: pre-wrap;
             word-wrap: break-word;
@@ -21,9 +28,16 @@
     </style>
 </head>
 <body>
-    <form>
-        <textarea id="input" placeholder="Enter your message" cols="50"></textarea>
+    <form id="messageForm">
+        <textarea id="message" placeholder="Enter your message" cols="50"></textarea>
         <button type="submit">Send</button>
+        <div class="option-set" id="splitter-case">
+            <h3>Splitter Case</h3>
+            <label><input type="radio" name="splitter" value="1"> Char Split</label>
+            <label><input type="radio" name="splitter" value="2"> Recursive Split</label>
+            <label><input type="radio" name="splitter" value="3"> Semantic Split</label>
+        </div>
+        <div id="option-result"></div>
     </form>
     <pre id="body"></pre>
     
@@ -31,15 +45,25 @@
     <script>
         const body = document.getElementById('body');
         const submit_btn = document.querySelector('button');
-        const input = document.getElementById('input');
 
         submit_btn.addEventListener("click", async (e) => {
-            e.preventDefault();
+            e.preventDefault(); // Prevent the default form submission
+
+            // Get the message from the textarea
+            const message = document.getElementById('message').value;
+            // Get the selected splitter value
+            const splitter = document.querySelector('input[name="splitter"]:checked')?.value;
+
+            // Prepare the payload for the fetch request
+            const payload = {
+                message: message,
+                splitter: splitter
+            };
 
             const response = await fetch("/answer", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({message: input.value})
+                body: JSON.stringify(payload)
             });
 
             const reader = response.body.getReader();
@@ -54,8 +78,7 @@
                     return;
                 }
             }
-
-        })
+        });
     </script>
 </body>
 </html>
