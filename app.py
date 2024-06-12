@@ -30,7 +30,7 @@ def pdf_parser(file_path):
 def splitter_character(text):
     text_splitter = CharacterTextSplitter(
         chunk_size=100,
-        chunk_overlap=2,
+        chunk_overlap=20,
         length_function=len,
         separator=" ",
         is_separator_regex=True
@@ -40,8 +40,8 @@ def splitter_character(text):
 
 def splitter_recursive(text):
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size = 200,
-        chunk_overlap = 0,
+        chunk_size = 100,
+        chunk_overlap = 20,
         length_function = len
     )
     texts = text_splitter.split_text(text)
@@ -63,7 +63,7 @@ def initialize_chroma(texts):
 def sim_search_similarity(message, k, splittercase):
     global chroma_index
     if chroma_index is None:
-        text = pdf_parser('TenStages.pdf')
+        text = pdf_parser('Collection.pdf')
         texts = splitter(text, splittercase)
         chroma_index = initialize_chroma(texts)
     results = chroma_index.similarity_search(message, k)
@@ -72,17 +72,17 @@ def sim_search_similarity(message, k, splittercase):
 def sim_search_threshold(message, k, splittercase):
     global chroma_index
     if chroma_index is None:
-        text = pdf_parser('TenStages.pdf')
+        text = pdf_parser('Collection.pdf')
         texts = splitter(text, splittercase)
         chroma_index = initialize_chroma(texts)
-    results = chroma_index.search(query = message, search_type = "similarity_score_threshold", score_threshold=0.8)
+    results = chroma_index.search(query = message, search_type = "similarity_score_threshold", score_threshold=0.9)
     print(results)
     return [result.page_content for result in results]
 
 def sim_search_MMR(message, k, splittercase):
     global chroma_index
     if chroma_index is None:
-        text = pdf_parser('TenStages.pdf')
+        text = pdf_parser('Collection.pdf')
         texts = splitter(text, splittercase)
         chroma_index = initialize_chroma(texts)
     results = chroma_index.max_marginal_relevance_search(message, k, 25, 0.5)
@@ -125,30 +125,28 @@ def create_app():
         message = str(data.get("message", ""))
         splitter = str(data.get("splitter", ""))
         retrieval = str(data.get("retrieval", ""))
-        
-        print("Received message:", message)
-        print("Selected splitter case:", splitter)
-        print("Selected retrieval case:", retrieval)
+
+        k = int(splitter)
         # message, number of outputs, splittercase, vectorretrivalcase
         # splittercase: char, recursive, semantic
         # retrivalcase: similarity, by threshold, and MMR
         # options are 1, 2, 3 (more intuitive that way)
-        contexts = search(message, 10, 2, 1)
-        print("Similar contexts:", contexts)
-
-        full_context = "\n".join(contexts)
-
-
-        prompt = PromptTemplate(template="{full_context}\n\nBased on the above, {message}", input_variables=["full_context", "message"])
-
-        llm_chain = prompt | llm
-
-        input = {
-            'full_context':full_context,
-            'message':message
-        }
-
-        response =  llm_chain.invoke(input=input).content
+        response = ""
+        x = 1
+        while (x != 4):
+            contexts = search(message, 5, k, x)
+            print(contexts)
+            full_context = "\n".join(contexts)
+            prompt = PromptTemplate(template="{full_context}\n\nBased on the above, {message}", input_variables=["full_context", "message"])
+            llm_chain = prompt | llm
+            input = {
+                'full_context':full_context,
+                'message':message
+            }
+            temp_response = llm_chain.invoke(input=input).content
+            response =  response +"\n\n " + temp_response
+            x+=1
+        response =  response +"\n\n "   
 
         return response
     return app
