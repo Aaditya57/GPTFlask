@@ -76,7 +76,6 @@ def sim_search_threshold(message, k, splittercase):
         texts = splitter(text, splittercase)
         chroma_index = initialize_chroma(texts)
     results = chroma_index.search(query = message, search_type = "similarity_score_threshold", score_threshold=0.9)
-    print(results)
     return [result.page_content for result in results]
 
 def sim_search_MMR(message, k, splittercase):
@@ -86,7 +85,6 @@ def sim_search_MMR(message, k, splittercase):
         texts = splitter(text, splittercase)
         chroma_index = initialize_chroma(texts)
     results = chroma_index.max_marginal_relevance_search(message, k, 25, 0.5)
-    print(results)
     return [result.page_content for result in results]
 
 def splitter(text, num):
@@ -127,6 +125,7 @@ def create_app():
         retrieval = str(data.get("retrieval", ""))
 
         k = int(splitter)
+        print (splitter)
         # message, number of outputs, splittercase, vectorretrivalcase
         # splittercase: char, recursive, semantic
         # retrivalcase: similarity, by threshold, and MMR
