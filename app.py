@@ -63,7 +63,7 @@ def initialize_chroma(texts):
 def sim_search_similarity(message, k, splittercase):
     global chroma_index
     if chroma_index is None:
-        text = pdf_parser('Collection.pdf')
+        text = pdf_parser('TenStages.pdf')
         texts = splitter(text, splittercase)
         chroma_index = initialize_chroma(texts)
     results = chroma_index.similarity_search(message, k)
@@ -107,7 +107,7 @@ def search(message, k, splittercase, searchcase):
         case 3:
             return sim_search_MMR(message, k, splittercase)
         case default:
-            return sim_search(message, k, splittercase)
+            return sim_search_similarity(message, k, splittercase)
 
 # Flask app
 def create_app():
