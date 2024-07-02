@@ -131,7 +131,7 @@ def create_app():
         # retrivalcase: similarity, by threshold, and MMR
         # options are 1, 2, 3 (more intuitive that way)
         response = ""
-        x = 1
+        x = 3
         while (x != 4):
             contexts = search(message, 5, k, x)
             print(contexts)
